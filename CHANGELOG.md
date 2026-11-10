@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.0 — 2026-11-11
+
+- ipfs-images-components 2.1.0: no npm packages with prebuilt binaries; thumbnails
+  use the system sharp (ALT `node-sharp`) and are off without it.
+
 ## 2.0.2 — 2026-11-11
 
 - The lock file really uses ipfs-images-components 2.0.1: in 2.0.1 it still
