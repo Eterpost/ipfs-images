@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.2 — 2026-11-11
+
+- The lock file really uses ipfs-images-components 2.0.1: in 2.0.1 it still
+  pinned the 2.0.0 commit.
+
 ## 2.0.1 — 2026-11-11
 
 - ipfs-images-components 2.0.1: the server starts on x86-64 CPUs without SSE4.2

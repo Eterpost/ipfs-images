@@ -1,6 +1,6 @@
 {
   "name": "ipfs-images",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Image server for Eterpost letters: upload, public download, thumbnails",
   "main": "server.js",
   "dependencies": {
