@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.1 — 2026-11-11
+
+- ipfs-images-components 2.0.1: the server starts on x86-64 CPUs without SSE4.2
+  (thumbnails are off there, the original image is served).
+
 ## 2.0.0 — 2026-11-10
 
 Node.js 22, Express 5 and ipfs-images-components 2.0; published as Eterpost/ipfs-images.
