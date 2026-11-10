@@ -6,7 +6,7 @@
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.3.0",
-    "ipfs-images-components": "file:../ipfs-images-components"
+    "ipfs-images-components": "github:Eterpost/ipfs-images-components#v2.0.0"
   },
   "private": true,
   "scripts": {
