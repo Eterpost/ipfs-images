@@ -1,0 +1,15 @@
+# Changelog
+
+## 2.0.0 — 2026-11-10
+
+Node.js 22, Express 5 and ipfs-images-components 2.0; published as Eterpost/ipfs-images.
+
+- `DELETE /del/:hash` requires an allowed address with `auth.type` `partial`, as `/ul` does.
+- Allowed address patterns match the whole address (`192\.168\..*` no longer matches
+  `10.192.168.1`).
+- Upload accepts only `server.allowedTypes` (images by default) and answers 400/413/415.
+- Download sends `ETag`, immutable caching, `nosniff` and `sandbox` headers.
+- The broken `/api/integrity` route is removed.
+- `server.host`, `server.trustProxy`; settings from `IPFS_IMAGES_CONFIG`.
+- The example config is valid JSON and no longer allows every address.
+- Tests run on `node:test`.

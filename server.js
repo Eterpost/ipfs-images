@@ -1,27 +1,20 @@
 'use strict';
 
-const app = require('express')();
-const path = require('path');
-const http = require('http');
-
-global.appRoot = path.resolve(__dirname);
-
 const components = require('ipfs-images-components');
 const logging = components.logging.getWrapperForModule('server');
 const settings = components.settings;
-const routes = require('./routes');
+const { createApp } = require('./routes');
 
-logging.info('Initialization');
-let server = new http.Server(app);
-
-app.use(function(req, res, next) {
-  res.setHeader('Cache-Control', 'no-transform');
-  next();
+const app = createApp();
+const { host, port } = settings.server;
+const server = app.listen(port, host, () => {
+  logging.info(`Listening on ${host || '*'}:${port}`);
 });
 
-logging.info('Starting');
-server.listen(settings.server.port);
+async function stop() {
+  server.close();
+  await components.redis.close();
+}
 
-routes(app);
-
-logging.info('Started');
+process.once('SIGTERM', stop);
+process.once('SIGINT', stop);

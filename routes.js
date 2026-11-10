@@ -1,98 +1,78 @@
 'use strict';
 
-const cookieParser = require('cookie-parser');
 const cors = require('cors');
-const Router = require('express').Router;
+const express = require('express');
 
 const components = require('ipfs-images-components');
 const logging = components.logging.getWrapperForModule('routes');
 const settings = components.settings;
 
-const auth = require('./auth');
-
-const corsOptions = {
-  credentials: true,
-  methods: 'GET, POST',
-  optionsSuccessStatus: 200,
-  origin: settings.server.headers.origin,
-};
-
-const preflight = Object.assign({}, corsOptions, {
-  allowHeaders: 'X-Requested-With',
-});
+const { requireAllowedIP } = require('./auth');
 
 /**
- * Configures HTTP routes.
- * @param  {Express} app Express app.
+ * @return {Object} Хранилище из settings.server.storage
  */
-function routes(app) {
-  app.use(cookieParser());
-  app.options('*', cors(preflight));
-
-  let authType = settings.server.auth.type;
-  let allowedIPs = settings.server.auth.allowedIPs;
-  let authWrapper = (request, response, next) => {
-    auth(allowedIPs, request.ip).then(() => next()).catch((error) => {
-      if (error instanceof auth.AuthError) {
-        response.sendStatus(403);
-      } else {
-        response.sendStatus(500);
-        logging.error(error);
-      }
-    });
-  };
-
-  const storage = settings.server.storage.type === 'ipfs' ? (
-    new components.storageBackends.IpfsStorage(
-      settings.server.storage.options.url
-    )
-  ) : new components.storageBackends.FilesystemStorage(
-    settings.server.storage.options.basePath
-  );
-  const thumbnailsStorage = new components.thumbnail(storage);
-  const metadata = new components.metadata();
-
-  let router = new Router();
-  if (authType === 'full') {
-    router.use('/', authWrapper);
-  } else if (authType === 'partial') {
-    router.use('/ul', authWrapper);
+function createStorage() {
+  const storage = settings.server.storage;
+  if (storage.type === 'ipfs') {
+    return new components.storageBackends.IpfsStorage(storage.options.url);
   }
-  app.use('/', router);
+  return new components.storageBackends.FilesystemStorage(storage.options.basePath);
+}
+
+/**
+ * Приложение сервера картинок.
+ *
+ * - POST /ul — загрузка (multipart, поле file);
+ * - GET /dl/:hash/:filename — файл, GET /dl/thumb/:size/:hash — превью;
+ * - DELETE /del/:hash — удаление.
+ *
+ * server.auth.type: full — все маршруты только с адресов server.auth.allowedIPs,
+ * partial — загрузка и удаление.
+ * @return {import('express').Express}
+ */
+function createApp() {
+  const app = express();
+  if (settings.server.trustProxy !== undefined) {
+    app.set('trust proxy', settings.server.trustProxy);
+  }
+  const corsOptions = {
+    credentials: true,
+    methods: 'GET, POST, DELETE',
+    optionsSuccessStatus: 200,
+    origin: settings.server.headers && settings.server.headers.origin,
+  };
+  app.options('/{*path}', cors({ ...corsOptions, allowedHeaders: 'X-Requested-With' }));
+
+  const allowedIPs = settings.server.auth.allowedIPs || [];
+  const auth = requireAllowedIP(allowedIPs);
+  const authType = settings.server.auth.type;
+  const protect = (handler) => authType === 'full' || authType === 'partial' ?
+    [auth, handler] : [handler];
+  const read = (handler) => authType === 'full' ? [auth, handler] : [handler];
+
+  const storage = createStorage();
+  const thumbnails = new components.thumbnail(storage);
+  const metadata = new components.metadata();
+  const cacheOptions = { CACHE_DURATION: settings.server.cache };
 
   app.use((request, response, next) => {
-    logging.verbose(
-      '[request] ' +
-        request.protocol +
-        '://' +
-        request.get('host') +
-        request.originalUrl
-    );
+    logging.verbose(`[request] ${request.method} ${request.originalUrl}`);
     next();
   });
 
   app.delete('/del/:hash', cors(corsOptions),
-    components.handlers.delAttachment(storage)
-  );
+    ...protect(components.handlers.delAttachment(storage, metadata)));
   app.get('/dl/thumb/:size/:hash', cors(corsOptions),
-    components.handlers.downloadThumb(thumbnailsStorage, metadata, {
-      CACHE_DURATION: settings.server.cache
-    })
-  );
-  app.get('/dl/:hash/:filename', cors(corsOptions), 
-    components.handlers.download(storage, metadata, {
-      CACHE_DURATION: settings.server.cache
-    })
-  );
+    ...read(components.handlers.downloadThumb(thumbnails, metadata, cacheOptions)));
+  app.get('/dl/:hash/:filename', cors(corsOptions),
+    ...read(components.handlers.download(storage, metadata, cacheOptions)));
   app.post('/ul', cors(corsOptions),
-    components.handlers.upload(storage, metadata, {
-      MAX_FILE_SIZE: settings.server.size
-    })
-  );
-
-  app.get('/api/integrity', cors(corsOptions), (request, response) =>
-    checkIntegrity(request, response)
-  );
+    ...protect(components.handlers.upload(storage, metadata, {
+      ALLOWED_TYPES: settings.server.allowedTypes,
+      MAX_FILE_SIZE: settings.server.size,
+    })));
+  return app;
 }
 
-module.exports = routes;
+module.exports = { createApp };

@@ -4,46 +4,31 @@ const components = require('ipfs-images-components');
 const logging = components.logging.getWrapperForModule('auth');
 
 /**
- * Class represents custom Auth error.
- * @extends Error
+ * Разрешён ли адрес: шаблон (регулярное выражение) должен совпасть со всем
+ * адресом, а не с его частью.
+ * @param {string[]} ips - Шаблоны разрешённых адресов
+ * @param {string} ip - Адрес клиента
+ * @return {boolean}
  */
-class AuthError extends Error {
-  /**
-   * Create an instance of error.
-   * @param {String} message Error message.
-   */
-  constructor(message) {
-    super();
-
-    this.message = message;
-    this.name = this.constructor.name;
-
-    Error.captureStackTrace(this, this.constructor);
-  }
+function isAllowed(ips, ip) {
+  const allowed = ips.some((pattern) => new RegExp(`^(?:${pattern})$`).test(ip));
+  logging.verbose(`${ip} is ${allowed ? '' : 'not '}allowed`);
+  return allowed;
 }
 
 /**
- * Authentication function tests request IP agains a set of allowed IPs.
- * @param  {String[]} ips Array of regexps of allowed IPs.
- * @param  {String}   ip  Request IP.
- * @return {Promise}      Promise resolves with True if authentication was
- *                        successful or rejects with AuthError otherwise.
+ * Промежуточный обработчик Express: запрос с неразрешённого адреса — 403.
+ * @param {string[]} allowedIPs - Шаблоны разрешённых адресов
+ * @return {Function}
  */
-function auth(ips, ip) {
-  return new Promise((resolve, reject) => {
-    ips.some((regexp) => {
-      logging.verbose(`Matching ${ip} against ${regexp}`);
-
-      if (ip.match(regexp)) {
-        logging.verbose(`Match found for ${ip} against ${regexp}`);
-        resolve(ip);
-        return true;
-      }
-    });
-
-    reject(new AuthError(`No match found for ${ip}`));
-  });
+function requireAllowedIP(allowedIPs) {
+  return (request, response, next) => {
+    if (isAllowed(allowedIPs, request.ip)) {
+      next();
+    } else {
+      response.sendStatus(403);
+    }
+  };
 }
 
-module.exports = auth;
-module.exports.AuthError = AuthError;
+module.exports = { isAllowed, requireAllowedIP };

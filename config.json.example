@@ -1,58 +1,34 @@
 {
   "logging": {
-    "transports": [{
-        "type": "console",
-        "level": "info",
-        "exceptions": false
-      },
-      {
-        "type": "file",
-        "level": "info",
-        "path": "/path/to/log/server.log",
-        "exceptions": false
-      }
+    "transports": [
+      { "type": "console", "level": "info" }
     ]
   },
-
   "redis": {
+    "url": "redis://127.0.0.1:6379",
     "options": {},
-    "index": {
-      "datetime": "ATTACHMENTS.DATETIME.INDEX"
-    },
-    "prefix": {
-      "attachments": "ATTACHMENTS_"
-    },
-    "url": "redis://localhost"
+    "prefix": { "attachments": "IMAGES_" },
+    "index": { "datetime": "IMAGES.DATETIME.INDEX" }
   },
-
   "server": {
+    "host": "127.0.0.1",
+    "port": 8002,
     "auth": {
       "type": "partial",
-      "allowedIPs": [
-         ".*", "192\\.168\\..*\\..*", "::1", "localhost", "127\\.0\\.0\\.1"
-      ]
+      "allowedIPs": ["127\\.0\\.0\\.1", "::1", "::ffff:127\\.0\\.0\\.1"]
     },
+    "allowedTypes": ["image/png", "image/jpeg", "image/gif", "image/webp"],
     "cache": 604800,
     "size": 26214400,
-    "port": 8080,
     "storage": {
-      "type": "ipfs",
-      "options": {
-        "url": "/ip4/ip_addr/tcp/5001"
-      }
-    }
-    "headers": {
-      "origin": "scheme://host:port"
-    }
+      "type": "filesystem",
+      "options": { "basePath": "/var/lib/ipfs-images/files" }
+    },
+    "headers": { "origin": "https://mailing.example.com" }
   },
-
   "thumbnails": {
     "cache": false,
-    "expire": 86400,
-    "interval": 3600,
-    "path": "/path/to/thumbnails",
-    "sizes": [
-      64, 128, 192, 256, 512
-    ]
+    "path": "/var/lib/ipfs-images/thumbnails",
+    "sizes": [64, 128, 192, 256, 512]
   }
 }

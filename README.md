@@ -1,132 +1,52 @@
 # ipfs-images
 
-IPFS images server, implemented using ipfs-images-components.
-## Classes
+Сервер картинок на [ipfs-images-components](https://github.com/Eterpost/ipfs-images-components).
+В Eterpost хранит картинки, вставленные в письма рассылок: веб-интерфейс
+рассылок загружает картинку, а в письмо попадает её публичный адрес.
 
-<dl>
-<dt><a href="#AuthError">AuthError</a> ⇐ <code>Error</code></dt>
-<dd><p>Class represents custom Auth error.</p>
-</dd>
-</dl>
+Требуется Node.js 22 и Redis; хранилище — каталог на диске или демон IPFS (Kubo).
 
-## Functions
+## Запуск
 
-<dl>
-<dt><a href="#upload">upload(request, response)</a> ⇒ <code>Promise</code></dt>
-<dd><p>Route handler for /ul.</p>
-</dd>
-<dt><a href="#download">download(request, response)</a> ⇒ <code>Promise</code></dt>
-<dd><p>Route handler for /dl/:hash/:filename.</p>
-</dd>
-<dt><a href="#downloadThumb">downloadThumb(request, response)</a> ⇒ <code>Promise</code></dt>
-<dd><p>Route handler for /dl/thumb/:size/:hash.</p>
-</dd>
-<dt><a href="#delAttachment">delAttachment(request, response)</a> ⇒ <code>Promise</code></dt>
-<dd><p>Route handler for /del/:hash/</p>
-</dd>
-<dt><a href="#routes">routes(app)</a></dt>
-<dd><p>Configures HTTP routes.</p>
-</dd>
-<dt><a href="#auth">auth(ips, ip)</a> ⇒ <code>Promise</code></dt>
-<dd><p>Authentication function tests request IP agains a set of allowed IPs.</p>
-</dd>
-</dl>
+```
+npm ci --omit=dev
+cp config.json.example config.json    # или IPFS_IMAGES_CONFIG=/путь/к/config.json
+npm start
+```
 
-<a name="AuthError"></a>
+## API
 
-## AuthError ⇐ <code>Error</code>
-Class represents custom Auth error.
+| Запрос | Что делает |
+|---|---|
+| `POST /ul` | Загрузка: multipart, поле `file`. Ответ `{id, filename, mime}`; 400 — нет файла, 413 — больше `server.size`, 415 — тип не из `server.allowedTypes` |
+| `GET /dl/:hash/:filename` | Файл (имя в адресе — для людей, ищется по хешу) |
+| `GET /dl/thumb/:size/:hash` | Превью JPEG (`thumbnails.sizes`) |
+| `DELETE /del/:hash` | Удалить файл и запись |
 
-**Kind**: global class  
-**Extends**: <code>Error</code>  
-<a name="new_AuthError_new"></a>
+Отдача: `ETag` по хешу, `Cache-Control: public, max-age=<server.cache>, immutable`,
+`X-Content-Type-Options: nosniff`, `Content-Security-Policy: sandbox`.
 
-### new AuthError(message)
-Create an instance of error.
+## Настройки
 
+- `server.auth.type`: `partial` — загрузка и удаление только с адресов
+  `server.auth.allowedIPs`, отдача открыта; `full` — всё только с них; иначе без
+  проверки. Шаблоны — регулярные выражения, совпадающие со всем адресом
+  (`127\\.0\\.0\\.1`, `10\\..*`).
+- За обратным прокси адрес клиента — адрес прокси; `server.trustProxy`
+  (значение Express `trust proxy`) берёт его из `X-Forwarded-For`. Если прокси
+  сам ограничивает доступ к загрузке (как в Eterpost: загрузка только из
+  веб-интерфейса), достаточно разрешить 127.0.0.1.
+- `server.allowedTypes` — по умолчанию png, jpeg, gif, webp; тип картинки
+  проверяется по содержимому. SVG не принимается: в нём бывают скрипты.
+- `server.storage`: `filesystem` (`options.basePath`) или `ipfs` (`options.url` —
+  RPC демона Kubo, например `http://127.0.0.1:5001`).
+- `redis.prefix.attachments`, `redis.index.datetime` — ключи метаданных; на общем
+  Redis задайте свой префикс.
 
-| Param | Type | Description |
-| --- | --- | --- |
-| message | <code>String</code> | Error message. |
+## Разработка
 
-<a name="upload"></a>
-
-## upload(request, response) ⇒ <code>Promise</code>
-Route handler for /ul.
-
-**Kind**: global function  
-**Returns**: <code>Promise</code> - Fulfills if response was successfully sent,
-                            rejects if not.  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| request | <code>Request</code> | HTTP request. |
-| response | <code>Response</code> | HTTP response. |
-
-<a name="download"></a>
-
-## download(request, response) ⇒ <code>Promise</code>
-Route handler for /dl/:hash/:filename.
-
-**Kind**: global function  
-**Returns**: <code>Promise</code> - Fulfills if response was successfully sent,
-                            rejects if not.  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| request | <code>Request</code> | HTTP request. |
-| response | <code>Response</code> | HTTP response. |
-
-<a name="downloadThumb"></a>
-
-## downloadThumb(request, response) ⇒ <code>Promise</code>
-Route handler for /dl/thumb/:size/:hash.
-
-**Kind**: global function  
-**Returns**: <code>Promise</code> - Fulfills if response was successfully sent,
-                            rejects if not.  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| request | <code>Request</code> | HTTP request. |
-| response | <code>Response</code> | HTTP response. |
-
-<a name="delAttachment"></a>
-
-## delAttachment(request, response) ⇒ <code>Promise</code>
-Route handler for /del/:hash/
-
-**Kind**: global function  
-**Returns**: <code>Promise</code> - Fulfills if response was successfully sent,
-                            rejects if not.  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| request | <code>Request</code> | HTTP request. |
-| response | <code>Response</code> | HTTP response. |
-
-<a name="routes"></a>
-
-## routes(app)
-Configures HTTP routes.
-
-**Kind**: global function  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| app | <code>Express</code> | Express app. |
-
-<a name="auth"></a>
-
-## auth(ips, ip) ⇒ <code>Promise</code>
-Authentication function tests request IP agains a set of allowed IPs.
-
-**Kind**: global function  
-**Returns**: <code>Promise</code> - Promise resolves with True if authentication was
-                       successful or rejects with AuthError otherwise.  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| ips | <code>Array.&lt;String&gt;</code> | Array of regexps of allowed IPs. |
-| ip | <code>String</code> | Request IP. |
-
+```
+npm ci
+TEST_REDIS_URL=redis://127.0.0.1:16379/1 npm test
+npm run lint
+```
