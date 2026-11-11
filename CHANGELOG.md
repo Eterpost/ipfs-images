@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.1 — 2026-11-11
+
+- ipfs-images-components 2.1.1: without sharp the log says it is not installed
+  instead of blaming the CPU. Thumbnails need ALT `node-sharp`.
+
 ## 2.1.0 — 2026-11-11
 
 - ipfs-images-components 2.1.0: no npm packages with prebuilt binaries; thumbnails
